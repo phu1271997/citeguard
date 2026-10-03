@@ -1,0 +1,14 @@
+{
+  "name": "citeguard-gen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A two-sided market that checks a claim against its own cited source, judged by a GenLayer AI validator jury.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "python3 -m http.server --directory frontend 8080",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "dependencies": {
+    "genlayer-js": "^1.1.8"
+  }
+}

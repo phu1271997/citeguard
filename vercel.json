@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "buildCommand": "node scripts/build.mjs",
+  "outputDirectory": "frontend",
+  "cleanUrls": true
+}
