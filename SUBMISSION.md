@@ -29,13 +29,20 @@ in `_judge`, feeding the LLM. The jury reads the source and rules SUPPORTED / UN
 
 ## Category tag 2
 ```
-Fact Checking
+Escrow Claims
 ```
-The domain is citation integrity — whether a source honestly backs a factual claim. If the Portal lacks
-a Fact-Checking tag, use `Content Verification` or `Prediction Markets & P2P Betting` (two-sided staking).
+`assert_claim` and `challenge` lock opposing bonds, and `resolve` conditionally releases the pot to the
+winner (or refunds both) — "conditional fund locking and resolution of escrow disputes." This is the
+secondary mechanic under the same Primary as tag 1.
 
-**Rejected tags:** `Jury Selection` (validators, not app-selected); `Escrow Claims` (it is an adversarial
-two-sided market, not a one-party work escrow).
+**Rejected:** `Jury Selection` (jury is GenLayer validators, not app-selected). Earlier drafts used
+`Fact Checking` / `Content Verification` — those are **not** in the taxonomy and have been removed.
+
+> Tags above are taken strictly from `~GEN_RULES/tag_taxonomy_specification.md` (Primary →
+> sub-tags only within that Primary). Honest note: both of my current projects are genuinely
+> **Dispute Resolution** at core; I did not mis-tag them into other Primaries just to spread the
+> catalog. The closest cross-Primary fit for CiteGuard is **AI & Agents → Source Verification** if
+> you prefer to diversify — flagged for you to decide at submit time.
 
 ## One-liner (176 chars)
 ```
