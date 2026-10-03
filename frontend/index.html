@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CiteGuard — does the source actually say that?</title>
+<meta name="description" content="Stake a claim with the source you cite. Anyone can stake against it. A GenLayer AI validator jury opens the cited page on-chain and rules whether it SUPPORTS the claim — the loser funds the winner." />
+<style>
+  :root{
+    --paper:#faf7f1;
+    --paper2:#f1ece1;
+    --ink:#1c1a17;
+    --mute:#6b655b;
+    --line:#d8cfbd;
+    --red:#c4362b;
+    --redink:#9a241c;
+    --blue:#2f5c86;
+    --green:#2f7d4f;
+    --amber:#a9791a;
+    --shadow:0 18px 44px -28px #0004;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--paper:#17181a;--paper2:#1f2024;--ink:#ece9e3;--mute:#9a948a;--line:#33353a;
+      --red:#e2695c;--redink:#f0897d;--blue:#79aede;--green:#5fc088;--amber:#dfae4e;--shadow:0 22px 52px -30px #000a;}
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:"Charter","Georgia",serif;background:var(--paper);color:var(--ink);line-height:1.55;padding:0 0 90px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+  a{color:var(--blue)}
+  code,.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+  header.mast{margin-top:42px;padding-bottom:20px;border-bottom:3px double var(--ink)}
+  .kicker{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--red);font-weight:700}
+  h1{font-size:clamp(32px,5.6vw,58px);line-height:1.0;letter-spacing:-.015em;margin:8px 0 10px}
+  h1 em{font-style:italic;color:var(--red)}
+  .sub{max-width:66ch;color:var(--mute);font-size:16px}
+  .pitch{margin-top:16px;display:inline-block;border:1px solid var(--line);background:var(--paper2);
+    padding:9px 13px;font-size:13px;border-radius:6px}
+  .pitch b{color:var(--ink)}
+
+  .walletbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:22px 0 4px;font-size:13px}
+  .addr{background:var(--ink);color:var(--paper);padding:6px 11px;border-radius:6px;letter-spacing:.03em}
+  .net{color:var(--mute)}
+  button{font-family:inherit;cursor:pointer;border:1.5px solid var(--ink);border-radius:7px;
+    background:var(--ink);color:var(--paper);padding:10px 16px;font-size:13px;font-weight:600;
+    letter-spacing:.03em;transition:transform .05s ease,opacity .15s}
+  button.ghost{background:transparent;color:var(--ink)}
+  button.danger{background:var(--red);border-color:var(--red);color:#fff}
+  button:hover{transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+  .fundHint{display:none;margin:10px 0;border:1px dashed var(--amber);color:var(--amber);
+    background:var(--paper2);padding:10px 12px;border-radius:7px;font-size:13px}
+  .fundHint .mono{color:var(--ink)}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:26px;margin-top:30px}
+  @media(min-width:860px){.grid{grid-template-columns:360px 1fr}}
+  .panel{border:1.5px solid var(--ink);background:var(--paper);border-radius:12px;box-shadow:var(--shadow)}
+  .panel h2{font-size:12px;letter-spacing:.2em;text-transform:uppercase;padding:14px 18px;border-bottom:1.5px solid var(--ink)}
+  .panel .body{padding:18px}
+  label{display:block;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin:12px 0 5px}
+  input,textarea{width:100%;font-family:inherit;font-size:14px;color:var(--ink);background:var(--paper2);
+    border:1px solid var(--line);border-radius:7px;padding:10px 11px}
+  textarea{min-height:82px;resize:vertical}
+  .hintline{font-size:12px;color:var(--mute);margin-top:5px}
+  .addrrow{display:flex;gap:8px;margin-bottom:6px}
+  .addrrow input{font-family:ui-monospace,monospace;font-size:12px}
+
+  .claim{border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;background:var(--paper);
+    padding:16px;margin-bottom:16px}
+  .claim.c-CHALLENGED{border-left-color:var(--amber)}
+  .claim.c-RESOLVED_SUPPORTED{border-left-color:var(--green)}
+  .claim.c-RESOLVED_UNSUPPORTED,.claim.c-RESOLVED_MISLEADING{border-left-color:var(--red)}
+  .ctop{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+  .cid{font-size:11px;letter-spacing:.2em;color:var(--mute);text-transform:uppercase}
+  .ctext{font-size:17px;margin-top:3px}
+  .ctext::before{content:'“'} .ctext::after{content:'”'}
+  .pot{font-family:ui-monospace,monospace;font-size:14px;text-align:right;white-space:nowrap}
+  .stamp{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;border:1px solid;white-space:nowrap}
+  .s-OPEN{color:var(--blue);border-color:var(--blue)}
+  .s-CHALLENGED{color:var(--amber);border-color:var(--amber)}
+  .s-SUPPORTED{color:var(--green);border-color:var(--green)}
+  .s-AGAINST{color:var(--red);border-color:var(--red)}
+  .s-MUTE{color:var(--mute);border-color:var(--line)}
+  .cmeta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:10px;font-size:13px;color:var(--mute)}
+  .cmeta b{color:var(--ink);font-weight:600}
+  .cmeta a{word-break:break-all}
+  .ruling{margin-top:12px;padding:11px 12px;border-radius:8px;background:var(--paper2);border:1px solid var(--line);font-size:14px}
+  .verdict{font-weight:800;letter-spacing:.05em;margin-right:8px}
+  .v-SUPPORTED{color:var(--green)} .v-UNSUPPORTED,.v-MISLEADING{color:var(--red)} .v-INCONCLUSIVE{color:var(--amber)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .actions button{padding:8px 13px;font-size:12px}
+  .empty{color:var(--mute);text-align:center;padding:30px}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;display:none;
+    background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:9px;box-shadow:var(--shadow);
+    font-size:14px;max-width:90vw}
+  .toast.err{background:var(--red)}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;
+    border-radius:50%;animation:sp .7s linear infinite;margin-right:8px;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  footer{margin-top:40px;color:var(--mute);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="kicker">Citation accountability market · GenLayer studionet</div>
+    <h1>Cite<em>Guard</em></h1>
+    <p class="sub">Post a factual claim with the one source you cite as backing it, and stake a bond.
+      Think the citation is bogus? Stake against it. When it settles, the contract opens the cited page
+      <b>on-chain</b> and a GenLayer validator jury reads it and rules whether the source really
+      <b>SUPPORTS</b> the claim — or fails it, or is cited out of context. The loser funds the winner.</p>
+    <div class="pitch">Dies without GenLayer: <b>only an on-chain jury that can fetch the cited page and reason about it can price whether a citation is honest.</b></div>
+
+    <div class="walletbar">
+      <button id="connectBtn">Connect wallet</button>
+      <span id="walletInfo" class="net">Not connected</span>
+      <span class="net">· network: <b>studionet</b></span>
+      <a id="explorerLink" href="#" target="_blank" rel="noopener" class="net">View contract ↗</a>
+    </div>
+    <div id="fundHint" class="fundHint">
+      This wallet looks empty on studionet. Fund it from the Studio <b>Accounts</b> panel before staking.
+      Address: <span id="fundAddr" class="mono"></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Assert a claim</h2>
+      <div class="body">
+        <div class="addrrow">
+          <input id="addrInput" placeholder="0x… CiteGuard contract" />
+          <button class="ghost" id="loadBtn">Load</button>
+        </div>
+        <label>The claim (one checkable sentence)</label>
+        <textarea id="claim" placeholder="e.g. The 2025 report says coverage reached 80% of the population"></textarea>
+        <label>Source URL you cite as backing it</label>
+        <input id="source" placeholder="https://…" />
+        <label>Your assertion bond (wei)</label>
+        <input id="amount" value="10000" />
+        <div class="hintline">A challenger must match or exceed this bond to dispute you.</div>
+        <div style="margin-top:14px"><button id="createBtn">Stake &amp; assert</button></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>The dispute desk</h2>
+      <div class="body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span id="lockedInfo" class="net">—</span>
+          <button class="ghost" id="refreshBtn">Refresh</button>
+        </div>
+        <div id="claims"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>CiteGuard · Intelligent Contract on GenLayer studionet · MetaMask signs every transaction; no key ever leaves your wallet.</footer>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/genlayer-js@1.1.8";
+import { studionet } from "https://esm.sh/genlayer-js@1.1.8/chains";
+
+const $ = (id) => document.getElementById(id);
+
+// Injected at build time by scripts/build.mjs from GENLAYER_CONTRACT_ADDRESS.
+let contractAddress = "0x7b56b5042DE319E35f3C8c1bABb7c0d0B8e400c1";
+$("addrInput").value = contractAddress.startsWith("0xCITE") ? "" : contractAddress;
+updateExplorerLink();
+
+const CHAIN = studionet;
+const CHAIN_ID_HEX = "0x" + CHAIN.id.toString(16);
+const RPC_URL = "https://studio.genlayer.com/api";
+
+let account = null, client = null;
+const readClient = createClient({ chain: CHAIN });
+
+function toast(msg, isErr=false, hold=false){
+  const t=$("toast"); t.className="toast"+(isErr?" err":"");
+  t.innerHTML=(hold?'<span class="spin"></span>':'')+msg; t.style.display="block";
+  if(!hold){clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",4600);}
+}
+function updateExplorerLink(){
+  $("explorerLink").href = `https://explorer-studio.genlayer.com/address/${contractAddress}`;
+}
+const short = (a)=> a && a.length>12 ? a.slice(0,6)+"…"+a.slice(-4) : (a||"");
+const esc = (s)=> String(s??"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (n)=>{ try{return BigInt(n).toLocaleString("en-US");}catch{return n;} };
+const isZero = (a)=> !a || /^0x0+$/.test(a);
+
+async function ensureStudioChain(){
+  if(!window.ethereum) throw new Error("MetaMask not detected");
+  try{
+    await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:CHAIN_ID_HEX}]});
+  }catch(err){
+    if(err.code===4902 || err.code===-32603){
+      await window.ethereum.request({method:"wallet_addEthereumChain",params:[{
+        chainId:CHAIN_ID_HEX,chainName:"GenLayer Studio Network",
+        nativeCurrency:{name:"GEN Token",symbol:"GEN",decimals:18},
+        rpcUrls:[RPC_URL],blockExplorerUrls:["https://explorer-studio.genlayer.com"],
+      }]});
+    }else{throw err;}
+  }
+}
+
+$("connectBtn").onclick = async () => {
+  try{
+    if(!window.ethereum){ toast("Install MetaMask — this dApp signs with MetaMask, not a burner key", true); return; }
+    const accs = await window.ethereum.request({method:"eth_requestAccounts"});
+    if(!accs||!accs.length) throw new Error("No account selected");
+    account = accs[0];
+    await ensureStudioChain();
+    client = createClient({ chain: CHAIN, account });
+    $("walletInfo").textContent = "Connected · "+short(account);
+    $("walletInfo").className = "addr";
+    $("connectBtn").textContent = "Reconnect";
+    toast("Wallet ready on studionet");
+    await checkBalanceHint();
+    refresh();
+  }catch(e){ toast("Connect failed: "+(e.shortMessage||e.message), true); }
+};
+
+async function checkBalanceHint(){
+  try{
+    const bal = await window.ethereum.request({method:"eth_getBalance",params:[account,"latest"]});
+    const zero = !bal || bal==="0x0" || bal==="0x";
+    $("fundHint").style.display = zero ? "block":"none";
+    $("fundAddr").textContent = account;
+  }catch{}
+}
+
+function ready(){
+  if(!client){ toast("Connect your wallet first", true); return false; }
+  if(!/^0x[0-9a-fA-F]{40}$/.test(contractAddress)){ toast("Load a valid contract address first", true); return false; }
+  return true;
+}
+
+$("loadBtn").onclick = () => {
+  const a=$("addrInput").value.trim();
+  if(!/^0x[0-9a-fA-F]{40}$/.test(a)){ toast("Paste a valid 0x… contract address", true); return; }
+  contractAddress=a; updateExplorerLink(); toast("Contract loaded"); refresh();
+};
+$("refreshBtn").onclick = () => refresh();
+
+$("createBtn").onclick = async () => {
+  if(!ready()) return;
+  const claim=$("claim").value.trim();
+  const source=$("source").value.trim();
+  const amount=$("amount").value.trim();
+  if(claim.length<12){ toast("Claim too short to adjudicate", true); return; }
+  if(!/^https?:\/\//i.test(source)){ toast("Source URL must start with http(s)://", true); return; }
+  if(!/^\d+$/.test(amount)||amount==="0"){ toast("Bond must be a positive integer (wei)", true); return; }
+  try{
+    toast("Staking your claim — approve in MetaMask…", false, true);
+    const hash = await client.writeContract({
+      address:contractAddress, functionName:"assert_claim",
+      args:[claim, source], value:BigInt(amount),
+    });
+    toast("Waiting for finalization…", false, true);
+    await client.waitForTransactionReceipt({ hash, status:"FINALIZED" });
+    toast("Claim asserted &amp; bond staked");
+    $("claim").value=$("source").value=""; $("amount").value="10000";
+    refresh();
+  }catch(e){ toast("Assert failed: "+(e.shortMessage||e.message), true); }
+};
+
+async function send(fn, args, value, pending){
+  if(!ready()) return;
+  try{
+    toast((pending||"Sending")+" — approve in MetaMask…", false, true);
+    const req={ address:contractAddress, functionName:fn, args };
+    if(value!==undefined) req.value=BigInt(value);
+    const hash = await client.writeContract(req);
+    toast("Waiting for the validator jury…", false, true);
+    await client.waitForTransactionReceipt({ hash, status:"FINALIZED" });
+    toast("Done");
+    refresh();
+  }catch(e){ toast("Action failed: "+(e.shortMessage||e.message), true); }
+}
+
+function challengeFlow(c){
+  const min = c.assert_bond;
+  const amt = prompt(`Stake AGAINST this citation. Minimum ${fmt(min)} wei (the assertion bond):`, min);
+  if(amt===null) return;
+  if(!/^\d+$/.test(amt) || BigInt(amt) < BigInt(min)){ toast("Challenge must be at least the assertion bond", true); return; }
+  send("challenge",[c.id],amt,"Staking against the citation");
+}
+
+async function refresh(){
+  if(!/^0x[0-9a-fA-F]{40}$/.test(contractAddress)){ return; }
+  const c = client || readClient;
+  try{
+    const raw = await c.readContract({ address:contractAddress, functionName:"list_claims", args:[] });
+    const claims = JSON.parse(raw);
+    try{
+      const locked = await c.readContract({ address:contractAddress, functionName:"get_total_locked", args:[] });
+      $("lockedInfo").innerHTML = `Total staked: <b>${fmt(locked)}</b> wei`;
+    }catch{}
+    render(claims);
+  }catch(e){ toast("Read failed: "+(e.shortMessage||e.message), true); }
+}
+
+function render(claims){
+  const box=$("claims");
+  if(!claims||!claims.length){ box.innerHTML='<div class="empty">No claims yet. Assert the first one.</div>'; return; }
+  box.innerHTML="";
+  for(const c of claims.slice().reverse()) box.appendChild(card(c));
+}
+
+function stampFor(status){
+  if(status==="OPEN") return ["OPEN","s-OPEN"];
+  if(status==="CHALLENGED") return ["DISPUTED","s-CHALLENGED"];
+  if(status==="RESOLVED_SUPPORTED") return ["SUPPORTED","s-SUPPORTED"];
+  if(status==="RESOLVED_UNSUPPORTED") return ["UNSUPPORTED","s-AGAINST"];
+  if(status==="RESOLVED_MISLEADING") return ["MISLEADING","s-AGAINST"];
+  if(status==="RESOLVED_INCONCLUSIVE") return ["INCONCLUSIVE","s-MUTE"];
+  if(status==="RESOLVED_UNCONTESTED") return ["UNCONTESTED","s-MUTE"];
+  return [status,"s-MUTE"];
+}
+
+function card(c){
+  const el=document.createElement("div"); el.className="claim c-"+c.status;
+  const me = account ? account.toLowerCase() : "";
+  const isAsserter = me && c.asserter && c.asserter.toLowerCase()===me;
+  const [label,cls]=stampFor(c.status);
+
+  el.innerHTML = `
+    <div class="ctop">
+      <div>
+        <div class="cid">CLAIM #${c.id}</div>
+        <div class="ctext">${esc(c.claim)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stamp ${cls}">${label}</div>
+        <div class="pot" style="margin-top:8px">pot ${fmt(c.pot)} wei</div>
+      </div>
+    </div>
+    <div class="cmeta">
+      <div><b>Asserter</b> ${short(c.asserter)} · ${fmt(c.assert_bond)} wei</div>
+      <div><b>Challenger</b> ${isZero(c.challenger) ? "— none —" : short(c.challenger)+" · "+fmt(c.challenge_bond)+" wei"}</div>
+      <div><b>Cited source</b> <a href="${esc(c.source_url)}" target="_blank" rel="noopener">${esc(c.source_url)}</a></div>
+    </div>`;
+
+  if(c.verdict){
+    const r=document.createElement("div"); r.className="ruling";
+    const winnerLine = isZero(c.winner) ? "both bonds refunded" : "pot paid to "+short(c.winner);
+    r.innerHTML=`<span class="verdict v-${c.verdict}">${c.verdict}</span><span>${esc(c.rationale||"(no rationale)")}</span>`+
+      `<div style="margin-top:6px;color:var(--mute);font-size:12px">${winnerLine}</div>`;
+    el.appendChild(r);
+  }
+
+  const acts=document.createElement("div"); acts.className="actions";
+  if(c.status==="OPEN"){
+    if(account && !isAsserter) acts.appendChild(dbtn("Stake against it", ()=>challengeFlow(c)));
+    if(isAsserter) acts.appendChild(btn("Reclaim (uncontested)", ()=>send("resolve",[c.id],undefined,"Reclaiming uncontested bond"), true));
+  }
+  if(c.status==="CHALLENGED"){
+    acts.appendChild(btn("Resolve with the jury", ()=>send("resolve",[c.id],undefined,"Asking the jury to read the source")));
+  }
+  if(acts.children.length) el.appendChild(acts);
+  return el;
+}
+
+function btn(label, onclick, ghost){
+  const b=document.createElement("button"); b.textContent=label; if(ghost) b.className="ghost"; b.onclick=onclick; return b;
+}
+function dbtn(label, onclick){
+  const b=document.createElement("button"); b.textContent=label; b.className="danger"; b.onclick=onclick; return b;
+}
+
+if(/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) refresh();
+</script>
+</body>
+</html>
