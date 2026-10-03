@@ -33,12 +33,27 @@ console.log("Deployer:", account.address);
 const txHash = await client.deployContract({ code, args: [], leaderOnly: false });
 console.log("Deploy tx:", txHash);
 
-const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED" });
-const address = receipt.contractAddress || receipt.data?.contract_address;
-if (!address) {
-  console.error("No contract address in receipt:", JSON.stringify(receipt, null, 2));
-  process.exit(1);
+// studionet can be slow to reach FINALIZED; fall back to polling the receipt.
+// On GenLayer a deploy receipt's `to` (or contractAddress) is the new address.
+async function resolveAddress() {
+  try {
+    const r = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED" });
+    return r.contractAddress || r.data?.contract_address || r.to;
+  } catch {
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      try {
+        const r = await client.getTransactionReceipt({ hash: txHash });
+        if (r && (r.status === "success" || r.status === "FINALIZED")) {
+          return r.contractAddress || r.data?.contract_address || r.to;
+        }
+      } catch {}
+    }
+    return null;
+  }
 }
+const address = await resolveAddress();
+if (!address) { console.error("Could not resolve contract address for", txHash); process.exit(1); }
 console.log("Contract address:", address);
 
 const envPath = join(root, ".env");

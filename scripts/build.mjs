@@ -20,8 +20,8 @@ if (!contractAddress) {
   process.exit(0);
 }
 
-const htmlPath = join(root, "frontend", "index.html");
-let html = readFileSync(htmlPath, "utf8");
-html = html.replace(/let contractAddress = "[^"]*"/g, `let contractAddress = "${contractAddress}"`);
-writeFileSync(htmlPath, html);
-console.log(`Injected contract address: ${contractAddress}`);
+const appPath = join(root, "frontend", "app.js");
+let app = readFileSync(appPath, "utf8");
+app = app.replace(/const INJECTED = "[^"]*"/, `const INJECTED = "${contractAddress}"`);
+writeFileSync(appPath, app);
+console.log(`Injected contract address into app.js: ${contractAddress}`);
