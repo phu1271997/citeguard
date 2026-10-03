@@ -10,9 +10,9 @@ funds the winner. No oracle, no human fact-checker.
 
 - **Live app:** https://citeguard-one.vercel.app
 - **Source:** https://github.com/phu1271997/citeguard
-- **Contract (studionet):** `0x7b56b5042DE319E35f3C8c1bABb7c0d0B8e400c1`
-- **Deploy tx:** `0x2fe53689564cc36a86876e9b1031fbf8cfea74af53840c103f8301aab46493cb`
-- **Explorer:** https://explorer-studio.genlayer.com/address/0x7b56b5042DE319E35f3C8c1bABb7c0d0B8e400c1
+- **Contract (studionet):** `0x5b7b9846554B4312C61B47649623F54866ef239e`
+- **Deploy tx:** `0x4960328c705a5c07e0a5dfcaa031e04168dae2831c02383114890b4100ca13b5`
+- **Explorer:** https://explorer-studio.genlayer.com/address/0x5b7b9846554B4312C61B47649623F54866ef239e
 - **Network:** GenLayer **studionet** (via GenLayer Studio)
 
 ---
@@ -62,14 +62,39 @@ own bond via `RESOLVED_UNCONTESTED`.
 - Resolving an already-resolved claim → rejected.
 - Terminal state is written **before** any value transfer (re-entrancy safety).
 
+## Frontend routes
+
+The dApp is split into dedicated views rather than one crammed page:
+
+| Route | Purpose |
+|---|---|
+| `/` | **Assert & dispute** — connect wallet, stake a claim, challenge open claims, resolve disputed ones. Primary actions only. |
+| `/explorer` | **Public ledger** — read-only, no wallet needed. Every dispute with its verdict, rationale, pot, who won, and filters (All / Open / Disputed / Supported / Failed). This is the transparency layer. |
+
+## Seeded on-chain demo
+
+The live contract already holds real, jury-resolved disputes so the Explorer is not empty:
+
+- **Claim #0 — SUPPORTED** — claim that the cited page reserves the domain for documentation
+  examples → the jury fetched `https://example.com`, confirmed it, and paid the pot to the asserter.
+- **Claim #1 — UNSUPPORTED** — claim that the same page states GenLayer mainnet launched in 2020 →
+  the jury found no such statement and paid the pot to the challenger.
+
+Reproduce with `source ~/.genlayer/env.sh && node scripts/seed.mjs` (uses `GENLAYER_PRIVATE_KEY` as
+asserter and `GENLAYER_PRIVATE_KEY_2` as challenger).
+
 ## Project layout
 
 ```
 contracts/citeguard.py    # the Intelligent Contract
-frontend/index.html       # genlayer-js dApp (MetaMask signs; no key in the bundle)
+frontend/index.html       # Home route (assert + dispute)
+frontend/explorer.html    # /explorer route (read-only ledger)
+frontend/app.js           # shared genlayer-js client (MetaMask signs; no key in the bundle)
+frontend/styles.css       # shared styles
 tests/test_citeguard.py   # gltest: all four verdicts + edge cases (LLM/web mocked)
 scripts/deploy.mjs        # deploy to studionet, writes address to .env
-scripts/build.mjs         # bakes the address into the frontend (Vercel build step)
+scripts/build.mjs         # bakes the address into frontend/app.js (Vercel build step)
+scripts/seed.mjs          # populate real disputes for the Explorer demo
 ```
 
 ## Deploy to studionet (step by step)
@@ -92,8 +117,8 @@ scripts/build.mjs         # bakes the address into the frontend (Vercel build st
 npm run build     # bakes GENLAYER_CONTRACT_ADDRESS from .env into frontend/index.html
 npm run dev       # serves frontend/ at http://localhost:8080
 ```
-Connect MetaMask; the app auto-switches to the GenLayer Studio network. You can paste any deployed
-CiteGuard address into the **Load** box to point the UI at another instance.
+Connect MetaMask; the app auto-switches to the GenLayer Studio network. To point the UI at a
+different CiteGuard instance, append `?address=0x…` to either route.
 
 ### Deploying the frontend (Vercel)
 `vercel.json` runs `node scripts/build.mjs` as the build command and serves `frontend/`. Set the
