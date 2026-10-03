@@ -8,7 +8,8 @@ Contract opens the cited page **on-chain**, a GenLayer validator jury reads it a
 the source really **SUPPORTS** the claim — or fails to, or is cited misleadingly — and the loser
 funds the winner. No oracle, no human fact-checker.
 
-- **Live app:** _TO BE FILLED AFTER VERCEL DEPLOY_
+- **Live app:** https://citeguard-one.vercel.app
+- **Source:** https://github.com/phu1271997/citeguard
 - **Contract (studionet):** `0x7b56b5042DE319E35f3C8c1bABb7c0d0B8e400c1`
 - **Deploy tx:** `0x2fe53689564cc36a86876e9b1031fbf8cfea74af53840c103f8301aab46493cb`
 - **Explorer:** https://explorer-studio.genlayer.com/address/0x7b56b5042DE319E35f3C8c1bABb7c0d0B8e400c1
