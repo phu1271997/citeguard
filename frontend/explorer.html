@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CiteGuard Explorer — resolved citation disputes</title>
+<meta name="description" content="Public, read-only ledger of every citation dispute handled by the CiteGuard contract — verdicts, rationales, pots, and who won. No wallet required." />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="wrap">
+  <nav class="top">
+    <a class="brand" href="/"><b>Cite<em>Guard</em></b></a>
+    <div class="links">
+      <a href="/">Assert &amp; dispute</a>
+      <a href="/explorer" class="active">Explorer</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="walletbar">
+      <button id="connectBtn">Connect wallet</button>
+      <span id="walletInfo" class="net">Not connected</span>
+      <a id="explorerLink" href="#" target="_blank" rel="noopener" class="net">Contract ↗</a>
+    </div>
+  </nav>
+
+  <div class="kicker">Public ledger · read-only · no wallet required</div>
+  <h1>The <em>Explorer</em></h1>
+  <p class="sub">Every citation dispute this contract has handled, with the jury's verdict, its
+    rationale, the pot, and who the pot went to. Audit any resolved decision without connecting a
+    wallet — this is the transparency layer.</p>
+
+  <div class="statrow" id="stats"></div>
+
+  <div class="filters" id="filters">
+    <button data-f="ALL" class="on">All</button>
+    <button data-f="OPEN">Open</button>
+    <button data-f="CHALLENGED">Disputed</button>
+    <button data-f="RESOLVED_SUPPORTED">Supported</button>
+    <button data-f="AGAINST">Failed</button>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>CiteGuard Explorer · reads <span id="addrFoot" class="mono"></span> on GenLayer studionet.</footer>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initCommon, listClaims, totalLocked, getAddress, EXPLORER, stampFor,
+         short, esc, fmt, isZero } from "./app.js";
+
+initCommon();
+document.getElementById("addrFoot").textContent = getAddress();
+
+let cache = [], filter = "ALL";
+
+document.getElementById("filters").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  filter = b.dataset.f;
+  [...document.querySelectorAll("#filters button")].forEach(x => x.classList.toggle("on", x === b));
+  paint();
+});
+
+const AGAINST = new Set(["RESOLVED_UNSUPPORTED", "RESOLVED_MISLEADING"]);
+function match(c) {
+  if (filter === "ALL") return true;
+  if (filter === "AGAINST") return AGAINST.has(c.status);
+  return c.status === filter;
+}
+function statBox(n, l) { return `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`; }
+
+async function load() {
+  const list = document.getElementById("list");
+  list.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  try {
+    cache = await listClaims();
+    const locked = await totalLocked();
+    const resolved = cache.filter(c => c.status.startsWith("RESOLVED_")).length;
+    const supported = cache.filter(c => c.status === "RESOLVED_SUPPORTED").length;
+    document.getElementById("stats").innerHTML =
+      statBox(cache.length, "Total claims") +
+      statBox(resolved, "Resolved") +
+      statBox(supported, "Citations upheld") +
+      statBox(fmt(locked) + " wei", "Currently staked");
+    paint();
+  } catch (e) {
+    list.innerHTML = `<div class="empty">Could not read the contract: ${esc(e.shortMessage || e.message)}</div>`;
+  }
+}
+
+function paint() {
+  const list = document.getElementById("list");
+  const rows = cache.slice().reverse().filter(match);
+  if (!rows.length) { list.innerHTML = '<div class="empty">No claims match this filter yet.</div>'; return; }
+  list.innerHTML = "";
+  for (const c of rows) list.appendChild(row(c));
+}
+
+function payoutLine(c) {
+  if (c.status === "RESOLVED_SUPPORTED") return `Pot paid to the asserter (${short(c.winner)}).`;
+  if (c.status === "RESOLVED_UNSUPPORTED" || c.status === "RESOLVED_MISLEADING") return `Pot paid to the challenger (${short(c.winner)}).`;
+  if (c.status === "RESOLVED_INCONCLUSIVE") return `Source unreadable — both bonds refunded.`;
+  if (c.status === "RESOLVED_UNCONTESTED") return `Unchallenged — asserter reclaimed their bond.`;
+  return "";
+}
+
+function row(c) {
+  const el = document.createElement("div"); el.className = "claim c-" + c.status;
+  const [label, cls] = stampFor(c.status);
+  el.innerHTML = `
+    <div class="ctop">
+      <div><div class="cid">CLAIM #${c.id}</div><div class="ctext">${esc(c.claim)}</div></div>
+      <div style="text-align:right">
+        <div class="stamp ${cls}">${label}</div>
+        <div class="pot" style="margin-top:8px">pot ${fmt(c.pot)} wei</div>
+      </div>
+    </div>
+    <div class="cmeta">
+      <div><b>Asserter</b> <a href="${EXPLORER}/address/${c.asserter}" target="_blank" rel="noopener">${short(c.asserter)}</a> · ${fmt(c.assert_bond)} wei</div>
+      <div><b>Challenger</b> ${isZero(c.challenger) ? "— none —" : `<a href="${EXPLORER}/address/${c.challenger}" target="_blank" rel="noopener">${short(c.challenger)}</a> · ${fmt(c.challenge_bond)} wei`}</div>
+      <div><b>Cited source</b> <a href="${esc(c.source_url)}" target="_blank" rel="noopener">${esc(c.source_url)}</a></div>
+    </div>`;
+  if (c.verdict) {
+    const r = document.createElement("div"); r.className = "ruling";
+    r.innerHTML = `<span class="verdict v-${c.verdict}">${c.verdict}</span><span>${esc(c.rationale || "(no rationale)")}</span>`
+      + `<div class="payout">${payoutLine(c)}</div>`;
+    el.appendChild(r);
+  }
+  return el;
+}
+
+load();
+</script>
+</body>
+</html>
