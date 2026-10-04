@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/genlayer-js@1.1.8";
 import { studionet } from "https://esm.sh/genlayer-js@1.1.8/chains";
 
 // Injected at build time by scripts/build.mjs from GENLAYER_CONTRACT_ADDRESS.
-const INJECTED = "0x5b7b9846554B4312C61B47649623F54866ef239e";
+const INJECTED = "0x8FECC1a61C71c400167d3AfAcc09e154cAbaf319";
 
 const CHAIN = studionet;
 const CHAIN_ID_HEX = "0x" + CHAIN.id.toString(16);

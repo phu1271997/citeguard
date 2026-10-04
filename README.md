@@ -10,9 +10,9 @@ funds the winner. No oracle, no human fact-checker.
 
 - **Live app:** https://citeguard-one.vercel.app
 - **Source:** https://github.com/phu1271997/citeguard
-- **Contract (studionet):** `0x5b7b9846554B4312C61B47649623F54866ef239e`
+- **Contract (studionet):** `0x8FECC1a61C71c400167d3AfAcc09e154cAbaf319`
 - **Deploy tx:** `0x4960328c705a5c07e0a5dfcaa031e04168dae2831c02383114890b4100ca13b5`
-- **Explorer:** https://explorer-studio.genlayer.com/address/0x5b7b9846554B4312C61B47649623F54866ef239e
+- **Explorer:** https://explorer-studio.genlayer.com/address/0x8FECC1a61C71c400167d3AfAcc09e154cAbaf319
 - **Network:** GenLayer **studionet** (via GenLayer Studio)
 
 ---
@@ -61,6 +61,10 @@ own bond via `RESOLVED_UNCONTESTED`.
 - Zero bond, too-short claim, non-`http(s)` source → rejected.
 - Resolving an already-resolved claim → rejected.
 - Terminal state is written **before** any value transfer (re-entrancy safety).
+- Payouts and refunds use the SDK's **native account transfer primitive**
+  (`_Payee(addr).emit_transfer(...)`, an `gl.evm.contract_interface`), not a
+  `get_contract_at(addr)` contract proxy — the correct path for sending native
+  GEN to a wallet (EOA).
 
 ## Frontend routes
 
@@ -133,6 +137,14 @@ gltest --network studionet   # against studionet
 ```
 Non-deterministic transactions install LLM/web mocks first (`sim_installMocks`) so the jury
 verdict is deterministic in tests.
+
+Settlement is covered by `test_winner_payout_moves_balances` and
+`test_split_refund_moves_balances`: they lock a pot, resolve from a neutral third
+account, and assert the contract's escrowed-balance ledger (`total_locked`) drains
+to 0 to the correct recipient. On a backend that models native-token flow
+(studionet / testnet) they additionally assert the exact recipient and contract
+native-balance deltas; the in-memory local simulator does not move value on
+`emit_transfer`, so those strict deltas engage only off the local sim.
 
 ## One-line pitch
 

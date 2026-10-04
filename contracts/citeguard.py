@@ -50,6 +50,35 @@ from dataclasses import dataclass
 ZERO_ADDR = Address(b"\x00" * 20)
 
 
+# -- native-token payout primitive --------------------------------------------
+#
+# Every settlement pays an EOA (an asserter or a challenger wallet), never a
+# contract. Sending native GEN to an account is a chain-layer "external message",
+# which the GenLayer SDK exposes as an `evm.contract_interface` carrying no
+# methods - the native account/wallet transfer primitive. We call
+# `_Payee(addr).emit_transfer(value=...)`.
+#
+# The previous code used `gl.get_contract_at(addr).emit_transfer(...)`. That is a
+# generic *contract proxy*: it routes an INTERNAL intelligent-contract dispatch
+# at a plain wallet address - the wrong primitive for an EOA, and one that does
+# not reliably reach validator majority. Hence this dedicated payee interface.
+@gl.evm.contract_interface
+class _Payee:
+    class View:
+        pass
+
+    class Write:
+        pass
+
+
+def _pay(to: Address, amount: bigint) -> None:
+    """Transfer `amount` wei of native GEN to account `to` through the SDK's
+    native account transfer primitive. No-op on zero (emit_transfer rejects
+    value <= 0)."""
+    if amount > 0:
+        _Payee(to).emit_transfer(value=u256(amount))
+
+
 @allow_storage
 @dataclass
 class Claim:
@@ -153,7 +182,7 @@ class Contract(gl.Contract):
             claim.winner = claim.asserter
             amount = claim.assert_bond
             self.total_locked = self.total_locked - amount
-            gl.get_contract_at(claim.asserter).emit_transfer(value=u256(amount))
+            _pay(claim.asserter, amount)
             return claim.status
 
         # Read storage BEFORE the nondet block.
@@ -169,18 +198,18 @@ class Contract(gl.Contract):
             claim.status = "RESOLVED_SUPPORTED"
             claim.winner = claim.asserter
             self.total_locked = self.total_locked - pot
-            gl.get_contract_at(claim.asserter).emit_transfer(value=u256(pot))
+            _pay(claim.asserter, pot)
         elif verdict in ("UNSUPPORTED", "MISLEADING"):
             claim.status = "RESOLVED_UNSUPPORTED" if verdict == "UNSUPPORTED" else "RESOLVED_MISLEADING"
             claim.winner = claim.challenger
             self.total_locked = self.total_locked - pot
-            gl.get_contract_at(claim.challenger).emit_transfer(value=u256(pot))
+            _pay(claim.challenger, pot)
         else:  # INCONCLUSIVE - refund both sides their own bonds
             claim.status = "RESOLVED_INCONCLUSIVE"
             claim.winner = ZERO_ADDR
             self.total_locked = self.total_locked - pot
-            gl.get_contract_at(claim.asserter).emit_transfer(value=u256(claim.assert_bond))
-            gl.get_contract_at(claim.challenger).emit_transfer(value=u256(claim.challenge_bond))
+            _pay(claim.asserter, claim.assert_bond)
+            _pay(claim.challenger, claim.challenge_bond)
         return claim.status
 
     # -------------------------------------------------------------------------

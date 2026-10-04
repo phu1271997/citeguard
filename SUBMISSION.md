@@ -89,11 +89,11 @@ Open /explorer with no wallet: the ledger shows a SUPPORTED claim (pot paid to t
 
 ## Contract link
 ```
-https://explorer-studio.genlayer.com/address/0x5b7b9846554B4312C61B47649623F54866ef239e
+https://explorer-studio.genlayer.com/address/0x8FECC1a61C71c400167d3AfAcc09e154cAbaf319
 ```
 - **Network:** studionet
 - **Status:** Preview (Studio deploy = Preview per Explorer rules)
-- **Address:** `0x5b7b9846554B4312C61B47649623F54866ef239e`
+- **Address:** `0x8FECC1a61C71c400167d3AfAcc09e154cAbaf319`
 - **Deploy tx:** `0x4960328c705a5c07e0a5dfcaa031e04168dae2831c02383114890b4100ca13b5`
 
 ## Website

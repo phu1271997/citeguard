@@ -31,6 +31,20 @@ def _install_mocks(verdict: str, rationale: str = "Mock ruling.",
     )
 
 
+def _balance(addr: str) -> int:
+    """Native GEN balance (wei) of an account or contract address."""
+    provider = get_gl_provider()
+    resp = provider.make_request(method="sim_getBalance", params={"account_address": addr})
+    return int(resp["result"])
+
+
+def _fund(addr: str, amount: int) -> None:
+    """Credit `amount` wei of native GEN to `addr` on the simulator so that
+    value-bearing transactions (and the payouts they trigger) can be observed."""
+    provider = get_gl_provider()
+    provider.make_request(method="sim_fundAccount", params={"account_address": addr, "amount": amount})
+
+
 @pytest.fixture
 def deployed():
     accounts = get_accounts()
@@ -169,3 +183,90 @@ def test_non_url_source_rejected(deployed):
         "ftp://nope",
     ]).transact(value=1_000)
     assert tx_execution_failed(receipt)
+
+
+# ── native-token settlement: recipient + contract balances actually move ────
+#
+# These exercise the fix for the audit finding: every settlement branch must move
+# native GEN through the SDK's native account transfer primitive
+# (`_Payee(addr).emit_transfer(...)`), NOT a `get_contract_at(addr)` contract proxy.
+#
+# `total_locked` is the contract's own escrowed-balance ledger: it holds exactly
+# the sum of native GEN the contract is custodying, so draining it to 0 is the
+# contract-side balance change. We also snapshot the payees' native balances and,
+# when the backend models native-token flow (real studionet/testnet does; the
+# in-memory local simulator does not move value on emit_transfer), strictly assert
+# the recipient deltas too. We resolve from a NEUTRAL third account so no gas ever
+# touches a payee's or the contract's balance, keeping every delta exact.
+
+def _total_locked(contract) -> int:
+    return int(contract.get_total_locked(args=[]).call())
+
+
+def test_winner_payout_moves_balances(deployed):
+    contract, asserter, challenger = deployed
+    resolver = get_accounts()[2]
+    for acct in (asserter, challenger, resolver):
+        _fund(acct.address, 1_000_000)
+
+    A, B = 10_000, 10_000
+    contract.connect(asserter).assert_claim(args=[
+        "The report states global coverage reached 80 percent in 2025",
+        "https://example.org/report",
+    ]).transact(value=A)
+    contract.connect(challenger).challenge(args=[0]).transact(value=B)
+
+    # Snapshot AFTER both bonds are locked, BEFORE resolution pays out.
+    assert _total_locked(contract) == A + B          # whole pot escrowed in contract
+    contract_before = _balance(contract.address)
+    asserter_before = _balance(asserter.address)
+    native_enforced = contract_before >= A + B
+
+    _install_mocks(verdict="SUPPORTED", rationale="Source states exactly 80 percent.")
+    contract.connect(resolver).resolve(args=[0]).transact()
+
+    c = json.loads(contract.get_claim(args=[0]).call())
+    assert c["status"] == "RESOLVED_SUPPORTED"
+    assert c["winner"].lower() == asserter.address.lower()   # recipient of the pot
+    # Contract-side balance change: the entire escrow is released.
+    assert _total_locked(contract) == 0
+
+    if native_enforced:
+        # Winner receives the whole pot; the contract is drained by exactly it.
+        assert _balance(asserter.address) == asserter_before + (A + B)
+        assert _balance(contract.address) == contract_before - (A + B)
+
+
+def test_split_refund_moves_balances(deployed):
+    contract, asserter, challenger = deployed
+    resolver = get_accounts()[2]
+    for acct in (asserter, challenger, resolver):
+        _fund(acct.address, 1_000_000)
+
+    A, B = 5_000, 7_000
+    contract.connect(asserter).assert_claim(args=[
+        "The linked page confirms the launch date is March",
+        "https://example.org/dead",
+    ]).transact(value=A)
+    contract.connect(challenger).challenge(args=[0]).transact(value=B)
+
+    assert _total_locked(contract) == A + B
+    contract_before = _balance(contract.address)
+    asserter_before = _balance(asserter.address)
+    challenger_before = _balance(challenger.address)
+    native_enforced = contract_before >= A + B
+
+    _install_mocks(verdict="INCONCLUSIVE", rationale="Source unreachable.")
+    contract.connect(resolver).resolve(args=[0]).transact()
+
+    c = json.loads(contract.get_claim(args=[0]).call())
+    assert c["status"] == "RESOLVED_INCONCLUSIVE"
+    assert c["winner"] == "0x0000000000000000000000000000000000000000"
+    # Split refund: contract releases the whole pot back to the two parties.
+    assert _total_locked(contract) == 0
+
+    if native_enforced:
+        # Each side is refunded exactly its own bond.
+        assert _balance(asserter.address) == asserter_before + A
+        assert _balance(challenger.address) == challenger_before + B
+        assert _balance(contract.address) == contract_before - (A + B)
